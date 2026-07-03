@@ -1,6 +1,6 @@
 # Data
-data/
-models/
+/data/
+/models/
 
 # Python temporary files
 __pycache__/
