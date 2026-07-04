@@ -7,8 +7,8 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    train_path = os.path.join(base_dir, 'train_data_clean.csv')
-    val_path = os.path.join(base_dir, 'val_data_clean.csv')
+    train_path = os.path.join(base_dir, 'data', 'processed', 'train_data_clean.csv')
+    val_path = os.path.join(base_dir, 'data', 'processed', 'val_data_clean.csv')
     
     print("Cargando los datos...")
     df_train = pd.read_csv(train_path)

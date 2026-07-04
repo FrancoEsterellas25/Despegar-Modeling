@@ -114,15 +114,15 @@ def get_base_models():
 
 def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    train_path = os.path.join(base_dir, 'train_data_clean.csv')
-    val_path = os.path.join(base_dir, 'val_data_clean.csv')
+    train_path = os.path.join(base_dir, 'data', 'processed', 'train_data_clean.csv')
+    val_path = os.path.join(base_dir, 'data', 'processed', 'val_data_clean.csv')
     
     # 1. Cargar y limpiar datos
     X_train, y_train, X_val, y_val = load_and_clean_data(train_path, val_path)
     
     # Para agilizar el cálculo en el script (K=5 folds sobre todo el dataset de 1M+ de filas con RF/XGB/LGB puede tomar horas)
     # Hacemos un submuestreo de 100,000 registros para train para que sea rápido y ejecutable en tiempo prudencial.
-    max_train_samples = 800000
+    max_train_samples = 1000000
     if len(X_train) > max_train_samples:
         print(f"\nSubmuestreando X_train a {max_train_samples} filas para hacer viable la ejecución del Stacking...")
         X_train_sub = X_train.sample(n=max_train_samples, random_state=42)

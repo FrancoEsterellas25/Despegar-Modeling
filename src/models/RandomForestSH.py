@@ -174,10 +174,10 @@ def successive_halving(X_train, y_train):
 def main():
     import joblib
     # Obtener el directorio raíz del proyecto (3 niveles arriba)
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     train_path = os.path.join(base_dir, 'data', 'processed', 'train_data_clean.csv')
     val_path = os.path.join(base_dir, 'data', 'processed', 'val_data_clean.csv')
-    models_dir = os.path.join(base_dir, 'models')
+    models_dir = os.path.join(os.path.dirname(base_dir), 'models')
     
     # 1. Carga y limpieza (mismo proceso que Linear.py)
     X_train, y_train, X_val, y_val = load_and_clean_data(train_path, val_path)

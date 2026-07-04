@@ -1,6 +1,16 @@
 # Data
 /data/
 /models/
+*.csv
+*.pkl
+*.joblib
+*.bst
+*.h5
+*.keras
+*.onnx
+*.model
+*.pt
+*.pth
 
 # Python temporary files
 __pycache__/
