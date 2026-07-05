@@ -8,7 +8,7 @@ from scipy.stats import ttest_rel
 
 def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    processed_dir = os.path.join(base_dir, "data", "processed")
+    processed_dir = os.path.join(base_dir, "src", "data", "processed")
     
     # Cargar los datasets
     # El dataset base es 'train_data_clean.csv' y el aumentado es 'train_data_symbolic.csv'

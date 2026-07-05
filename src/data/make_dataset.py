@@ -156,22 +156,22 @@ def preprocess_and_clean_pipeline(data_dir="data"):
         print("Aviso: No se pudo cargar el caché de metro. Se asignará una distancia estimada.")
         hoteles_utm["dist_metro_m"] = 1000.0
         
-    # Playas / Costa (Caché local en data/external)
+    # Playas / Costa (Caché local en data/external o Fallback Geoespacial)
     costa_cache_path = os.path.join(data_dir, "external", "costa_linea_cache.rds")
-    if pyreadr is not None and os.path.exists(costa_cache_path):
-        costa_data = pyreadr.read_r(costa_cache_path)[None]
-        # Distancia mínima a las playas de Copacabana / Ipanema / Flamengo / Barra
-        costa_fallback = {
-            "Barra": (-23.015, -43.370), "Ipanema": (-22.988, -43.200),
-            "Copacabana": (-22.971, -43.179), "Flamengo": (-22.925, -43.167)
-        }
-        distances_playa = []
-        for idx, row in hoteles_utm.iterrows():
-            dists = [haversine_distance(row["latitude"], row["longitude"], lat, lon) for lat, lon in costa_fallback.values()]
-            distances_playa.append(np.min(dists))
-        hoteles_utm["dist_playa_m"] = distances_playa
-    else:
-        hoteles_utm["dist_playa_m"] = 500.0
+    
+    # Independientemente de pyreadr, usaremos el fallback de Haversine para garantizar varianza
+    costa_fallback = {
+        "Barra": (-23.015, -43.370), "Ipanema": (-22.988, -43.200),
+        "Copacabana": (-22.971, -43.179), "Flamengo": (-22.925, -43.167)
+    }
+    
+    print("Calculando distancias a playas principales usando aproximación Haversine...")
+    distances_playa = []
+    for idx, row in hoteles_utm.iterrows():
+        dists = [haversine_distance(row["latitude"], row["longitude"], lat, lon) for lat, lon in costa_fallback.values()]
+        distances_playa.append(np.min(dists))
+    
+    hoteles_utm["dist_playa_m"] = distances_playa
         
     # Favelas (Aglomerados Subnormais IBGE 2019 desde data/external)
     favelas_shapefile = os.path.join(data_dir, "external", "base_grafica_20200519_110000", "AGSN_2019", "AGSN_2019.shp")

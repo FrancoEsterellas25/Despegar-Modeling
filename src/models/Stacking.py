@@ -65,24 +65,25 @@ def load_and_clean_data(train_path, val_path):
 def get_base_models():
     """
     Define los modelos del Nivel 0 con las configuraciones optimizadas por el usuario.
+    Se han ajustado los parámetros para evitar sobreajuste extremo y tamaños de archivo de >6GB.
     """
     rf = RandomForestRegressor(
-        n_estimators=300,
-        max_depth=None,
-        min_samples_split=7,
-        min_samples_leaf=2,
+        n_estimators=100,      # Reducido de 300 para aligerar tamaño
+        max_depth=15,          # Limitado de None a 15 para evitar crecimiento infinito
+        min_samples_split=10,
+        min_samples_leaf=4,
         max_features=0.4,
         random_state=42,
         n_jobs=-1
     )
     
     xgb = XGBRegressor(
-        n_estimators=700,
-        learning_rate=0.03,
-        max_depth=9,
-        min_child_weight=3,
-        subsample=0.7,
-        colsample_bytree=0.9,
+        n_estimators=200,      # Reducido de 700
+        learning_rate=0.05,
+        max_depth=7,           # Reducido de 9
+        min_child_weight=5,
+        subsample=0.8,
+        colsample_bytree=0.8,
         reg_alpha=1.0,
         reg_lambda=10.0,
         random_state=42,
@@ -91,13 +92,13 @@ def get_base_models():
     )
     
     lgbm = lgb.LGBMRegressor(
-        n_estimators=700,
-        learning_rate=0.03,
+        n_estimators=300,      # Reducido de 700
+        learning_rate=0.05,
         num_leaves=31,
-        max_depth=10,
-        min_child_samples=5,
+        max_depth=8,           # Reducido de 10
+        min_child_samples=10,
         subsample=0.8,
-        colsample_bytree=0.6,
+        colsample_bytree=0.7,
         reg_alpha=1.0,
         reg_lambda=1.0,
         min_split_gain=0.1,

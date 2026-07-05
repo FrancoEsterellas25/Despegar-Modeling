@@ -6,7 +6,7 @@ from gplearn.genetic import SymbolicTransformer
 
 def main():
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    data_dir = os.path.join(base_dir, "data")
+    data_dir = os.path.join(base_dir, "src", "data")
     processed_dir = os.path.join(data_dir, "processed")
     models_dir = os.path.join(base_dir, "models")
     
