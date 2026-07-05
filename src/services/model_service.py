@@ -95,12 +95,10 @@ class StackingStrategy(PredictionStrategy):
                 oof_matrix = np.column_stack(oof_preds)
                 return meta.predict(oof_matrix)
             except Exception as e:
-                print(f"Error en fallback de Stacking Joblib: {e}")
+                raise RuntimeError(f"Error crítico ejecutando Stacking Joblib: {e}") from e
         
-        # Si no hay modelos, retornamos una predicción mock representativa basada en la estrella del hotel
-        # para que la app expositiva sea 100% interactiva
         print("Modelos de Stacking no encontrados. Usando simulador heurístico.")
-        star_idx = config.FEATURES.index("starRating") if "starRating" in config.FEATURES else 0
+        star_idx = features.columns.index("starRating") if "starRating" in features.columns else 0
         stars = X[:, star_idx] if X.shape[1] > star_idx else np.ones(len(X)) * 3
         return 100.0 + (stars * 75.0) + np.random.normal(0, 10, size=len(X))
 
@@ -120,27 +118,31 @@ class MoEStrategy(PredictionStrategy):
         Returns:
             np.ndarray: Predicted prices.
         """
-        try:
-            import os
-            import joblib
-            moe_path = os.path.join(config.MODELS_DIR, "moe_model_best.joblib")
-            if not os.path.exists(moe_path):
-                print("Modelos MoE no encontrados, usando mock...")
-                X = features.to_numpy().astype(np.float32)
-                return self._mock_predict(X)
+        import os
+        import joblib
+        
+        moe_path = os.path.join(config.MODELS_DIR, "moe_model_best.joblib")
+        if not os.path.exists(moe_path):
+            print("Modelos MoE no encontrados, usando mock...")
+            return self._mock_predict(features.to_numpy().astype(np.float32), features.columns)
             
+        try:
             data = joblib.load(moe_path)
             modelos = data['modelos']
             expected_cols = data.get('columnas', features.columns)
             
-            # Select exact columns required by MoE
-            cols_to_select = [c for c in expected_cols if c in features.columns]
-            X = features.select(cols_to_select).to_numpy().astype(np.float32)
+            # Alineación dinámica de features: Rellenar con 0 las columnas dummy faltantes
+            missing_cols = [c for c in expected_cols if c not in features.columns]
+            if missing_cols:
+                features = features.with_columns([pl.lit(0).alias(c) for c in missing_cols])
+                
+            # Seleccionar exactamente las columnas esperadas en el orden correcto
+            X = features.select(expected_cols).to_numpy().astype(np.float32)
             
-            # Obtener índices para las reglas heurísticas (buscando en los expected_cols)
-            star_idx = cols_to_select.index("starRating") if "starRating" in cols_to_select else 0
-            rooms_idx = cols_to_select.index("numberOfRooms") if "numberOfRooms" in cols_to_select else 0
-            amenities_idx = cols_to_select.index("total_amenities") if "total_amenities" in cols_to_select else 0
+            # Obtener índices para las reglas heurísticas buscando en los expected_cols
+            star_idx = expected_cols.index("starRating") if "starRating" in expected_cols else 0
+            rooms_idx = expected_cols.index("numberOfRooms") if "numberOfRooms" in expected_cols else 0
+            amenities_idx = expected_cols.index("total_amenities") if "total_amenities" in expected_cols else 0
             
             preds = np.zeros(len(X))
             
@@ -164,12 +166,15 @@ class MoEStrategy(PredictionStrategy):
             return preds
             
         except Exception as e:
-            print(f"Error en MoEStrategy real: {e}")
-            return self._mock_predict(X)
+            # Eliminar la caída silenciosa: Ahora cualquier error explota para no ocultar inconsistencias
+            raise RuntimeError(f"Error crítico en MoEStrategy durante la inferencia: {e}") from e
             
-    def _mock_predict(self, X: np.ndarray) -> np.ndarray:
-        star_idx = config.FEATURES.index("starRating") if "starRating" in config.FEATURES else 0
-        amenities_idx = config.FEATURES.index("total_amenities") if "total_amenities" in config.FEATURES else 0
+    def _mock_predict(self, X: np.ndarray, feature_names: list = None) -> np.ndarray:
+        if feature_names is None:
+            feature_names = config.FEATURES
+            
+        star_idx = feature_names.index("starRating") if "starRating" in feature_names else 0
+        amenities_idx = feature_names.index("total_amenities") if "total_amenities" in feature_names else 0
         
         preds = []
         for row in X:

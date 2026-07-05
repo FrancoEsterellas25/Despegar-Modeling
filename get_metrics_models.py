@@ -67,6 +67,7 @@ def main():
         json.dump(metrics, f, indent=4)
         
     np.savez_compressed("data/cache/preds_cache.npz", y_true=y_true, preds_stacking=preds_stacking, preds_moe=preds_moe)
+    features.write_parquet("data/cache/val_features_processed.parquet")
     print("Proceso completado con éxito.", flush=True)
 
 if __name__ == "__main__":

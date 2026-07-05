@@ -19,7 +19,7 @@ def render_feature_engineering_page() -> None:
     """)
     st.divider()
 
-    # Intentar cargar datos de validación
+    # Intentar cargar datos de testeo
     try:
         df = DataService.load_validation_data()
         data_available = True
@@ -40,12 +40,12 @@ def render_feature_engineering_page() -> None:
         
         **Implementación Estricta y Fuga de Información (Data Leakage):**
         *   **Entrenamiento:** El algoritmo MCA se ajusta **exclusivamente utilizando el conjunto de datos de entrenamiento**. Esto genera un espacio de menor dimensionalidad que preserva la mayor cantidad de inercia (varianza) posible de las categorías originales.
-        *   **Proyección:** Las observaciones pertenecientes al conjunto de **validación (y prueba) son estrictamente proyectadas** sobre este espacio euclidiano ya aprendido. En ningún escenario las observaciones de validación modifican los pesos o la estructura del espacio latente, garantizando una evaluación insesgada.
+        *   **Proyección:** Las observaciones pertenecientes al conjunto de **testeo son estrictamente proyectadas** sobre este espacio euclidiano ya aprendido. En ningún escenario las observaciones de testeo modifican los pesos o la estructura del espacio latente, garantizando una evaluación insesgada.
         *   **Resultado:** Cada alojamiento es representado mediante coordenadas continuas (`mca_dim_1` a `mca_dim_8`), transformando atributos cualitativos en vectores numéricos densos.
         """)
     with col2_mca:
         if data_available and "mca_dim_1" in df.columns:
-            st.markdown("<p style='text-align: center; font-size: 0.9em; color: gray;'>Proyección de Validación en Espacio MCA (Dim 1 vs Dim 2)</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; font-size: 0.9em; color: gray;'>Proyección de Testeo en Espacio MCA (Dim 1 vs Dim 2)</p>", unsafe_allow_html=True)
             fig_mca, ax_mca = plt.subplots(figsize=(6, 4))
             # Usando datos REALES ahora que fueron calculados correctamente
             sns.scatterplot(x=df["mca_dim_1"].to_numpy(), y=df["mca_dim_2"].to_numpy(), alpha=0.4, color="#3498db", edgecolor=None, s=20, ax=ax_mca)
@@ -74,7 +74,7 @@ def render_feature_engineering_page() -> None:
         """)
     with col2_geo:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.info("💡 **Insights Geoespaciales (Muestra de Validación)**")
+        st.info("💡 **Insights Geoespaciales (Muestra de Testeo)**")
         if data_available and "dist_playa_m" in df.columns:
             # En lugar del histograma, presentamos métricas de resumen elegantes
             playa_mediana = df["dist_playa_m"].median()
@@ -153,7 +153,7 @@ def render_feature_engineering_page() -> None:
     with col2_sym:
         st.info("🔬 **Auditoría de Rendimiento: Test A/B Riguroso**")
         st.markdown("""
-        Para garantizar que la inyección de estas variables sintéticas aporta ganancia de información real, se diseñó un pipeline de validación empírica:
+        Para garantizar que la inyección de estas variables sintéticas aporta ganancia de información real, se diseñó un pipeline de testeo empírico:
         *   **Baseline vs. Aumentado:** `XGBRegressor` (`max_depth=3`)
         *   **Cross-Validation:** 5-Fold CV aleatorio.
         *   **Prueba de Hipótesis:** Paired T-Test sobre el RMSE.

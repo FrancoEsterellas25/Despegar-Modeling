@@ -17,7 +17,21 @@ def render_modeling_comparison_page() -> None:
     
     st.markdown("""
     **Resumen Ejecutivo:**
-    Esta sección expone los fundamentos algorítmicos y topológicos de los dos motores de inferencia propuestos. El enfoque *Mixture of Experts (MoE)* apuesta por la hiperespecialización de modelos en subespacios de datos (ej. hoteles de lujo vs. estándar). Por su parte, la arquitectura de *Stacking de 2 Niveles* busca la generalización global combinando predicciones condicionales a través de un meta-estimador paramétrico. A continuación, se detallan las estructuras subyacentes y se presenta la evaluación comparativa empírica sobre el conjunto de validación de exclusión (*hold-out*).
+    Esta sección expone los fundamentos algorítmicos y topológicos de los dos motores de inferencia propuestos. El enfoque *Mixture of Experts (MoE)* apuesta por la hiperespecialización de modelos en subespacios de datos (ej. hoteles de lujo vs. estándar). Por su parte, la arquitectura de *Stacking de 2 Niveles* busca la generalización global combinando predicciones condicionales a través de un meta-estimador paramétrico. A continuación, se detallan las estructuras subyacentes y se presenta la evaluación comparativa empírica sobre el conjunto de testeo de exclusión (*hold-out*).
+    """)
+    st.divider()
+
+    # -------------------------------------------------------------------------
+    # METODOLOGÍA DE EVALUACIÓN DE MODELOS
+    # -------------------------------------------------------------------------
+    st.markdown("<h2 style='text-align: center; color: #8e44ad; padding: 15px; background-color: #f4ecf7; border-radius: 8px; margin-bottom: 20px; font-weight: bold;'>🔬 Metodología de Evaluación de Modelos</h2>", unsafe_allow_html=True)
+    st.info("""
+    La metodología empleada para evaluar la robustez de las arquitecturas predictivas se divide en las siguientes etapas:
+
+    *   **Preparación en el Set de Entrenamiento (Train):** Se diseñan las variables explicativas (*Feature Engineering*) y se extraen los estadísticos y parámetros necesarios (ej. hiperplanos del MCA, métricas geoespaciales KNN) que luego se proyectarán de forma estricta sobre el **Set de Testeo**.
+    *   **Finetuning (Exclusivo de Ensamble Stacking):** Los estimadores base se optimizan sobre el **Set de Entrenamiento** utilizando validación cruzada (*Cross-Validation*). Las predicciones Out-of-Fold alimentan finalmente al meta-modelo (Regresión Lineal simple), garantizando que aprenda de predicciones no sesgadas.
+    *   **Hiper-parametrización de Expertos (Exclusivo de Mixture of Experts):** El espacio muestral se segmenta heurísticamente y cada nicho entrena su propio modelo especializado (**XGBRegressor**) utilizando parámetros optimizados estáticos y detención temprana (*early-stopping*).
+    *   **Evaluación Final en el Set de Testeo:** Se proyectan todas las transformaciones aprendidas sobre el **Set de Testeo** (datos nunca antes vistos) y se auditan los resultados utilizando las 5 métricas de negocio estipuladas.
     """)
     st.divider()
 
@@ -62,7 +76,7 @@ def render_modeling_comparison_page() -> None:
     # -------------------------------------------------------------------------
     # EVALUACIÓN EMPÍRICA (MÉTRICAS)
     # -------------------------------------------------------------------------
-    st.markdown("### 📊 Evaluación de Rendimiento Generalización (Set de Validación)")
+    st.markdown("### 📊 Evaluación de Rendimiento Generalización (Set de Testeo)")
     
     try:
         import os
@@ -122,7 +136,7 @@ def render_modeling_comparison_page() -> None:
         # -------------------------------------------------------------------------
         with st.expander("📚 Glosario de Métricas Matemáticas y Criterios de Evaluación", expanded=False):
             st.markdown(r"""
-            Para auditar de forma justa arquitecturas tan complejas, hemos evaluado los modelos sobre la totalidad del **Dataset de Validación (OOT - Out of Time / Hold-out)** utilizando las siguientes funciones de pérdida:
+            Para auditar de forma justa arquitecturas tan complejas, hemos evaluado los modelos sobre la totalidad del **Dataset de Testeo (OOT - Out of Time / Hold-out)** utilizando las siguientes funciones de pérdida:
 
             **1. Root Mean Squared Error (RMSE)**  
             Representa el error absoluto promedio de la predicción penalizando de manera cuadrática los errores más grandes (outliers). Se mide en la misma unidad de la variable objetivo (Dólares).
