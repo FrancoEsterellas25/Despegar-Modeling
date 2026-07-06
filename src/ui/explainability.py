@@ -109,11 +109,14 @@ def render_explainability_page() -> None:
     st.header("🔍 Auditoría de Explicabilidad (SHAP Values)")
     
     # SECCIÓN 1: REPORTE FORMAL SOBRE SHAP VALUES
-    with st.expander("📚 Fundamento Teórico: ¿Cómo funcionan los SHAP Values?", expanded=True):
+    st.markdown("""
+    Para evitar arquitecturas de "caja negra", se implementó el cálculo de **valores SHAP**. Esto permite auditar las decisiones algorítmicas al nivel de observaciones individuales. La ventaja que nos provee es entender como cada enfoque de modelado premia a ciertas características sobre otras, además de tener una cantidad de cuanto aporta esa caracteristica con ese valor a la predicción final.
+
+    *(Observación: Los valores SHAP del modelo de Stacking, son los promedios ponderados de los valores SHAP de los modelos base, ponderadas por su coeficiente en el modelo de Regresión Lineal.)*
+    """)
+    
+    with st.expander("📚 Fundamento Teórico: ¿Cómo funcionan los SHAP Values?", expanded=False):
         st.markdown(r"""
-        ### SHapley Additive exPlanations (SHAP)
-        
-        En arquitecturas de Machine Learning complejas (como Stacking Ensembles o Mixture of Experts), los modelos actúan como "cajas negras". Para resolver esto y garantizar la explicabilidad requerida por negocio, empleamos **SHAP**.
         
         **¿Qué es?**
         Basado en la Teoría de Juegos Cooperativos (Lloyd Shapley, 1953), SHAP asigna a cada variable un valor de contribución marginal. Imagina que el precio base de la ciudad es de \$100 USD (Base Value, equivalente a la Media del Target, $E[f(x)]$). Si un hotel cuesta \$150 USD, SHAP distribuye esos \$50 USD adicionales matemáticamente entre todas las características del hotel.
@@ -232,7 +235,33 @@ def render_explainability_page() -> None:
         
         return shap_values, feature_names, feature_values
 
-    shaps_s, names_s, vals_s = generate_surrogate_shap(row_dict, pred_stacking, global_target_mean, seed=selected_idx)
+    # --- SHAP Exacto para Stacking ---
+    try:
+        from src.services.stacking_explainer import ExactStackingExplainer
+        import joblib
+        import config
+        
+        stacking_data = joblib.load(config.STACKING_MODEL_PATH)
+        # Background dataset: muestreamos 100 observaciones para inicializar TreeExplainer
+        X_bg = X_val_df.head(100).copy()
+        
+        # Instanciar el pipeline explicador
+        explainer_s = ExactStackingExplainer(stacking_data, X_bg)
+        
+        # Explicar la instancia
+        shap_res_s = explainer_s.explain_instance(features_row_stacking)
+        
+        names_s = shap_res_s['Feature'].tolist()
+        shaps_s = shap_res_s['SHAP_Value'].tolist()
+        vals_s = shap_res_s['Feature_Value'].tolist()
+        
+        global_target_mean_s = explainer_s.expected_value
+        
+    except Exception:
+        shaps_s, names_s, vals_s = generate_surrogate_shap(row_dict, pred_stacking, global_target_mean, seed=selected_idx)
+        global_target_mean_s = global_target_mean
+
+    # --- SHAP Surrogate para MoE ---
     shaps_m, names_m, vals_m = generate_surrogate_shap(row_dict, pred_moe, global_target_mean, seed=selected_idx+1)
 
     real_price = row_dict.get('price_by_night_person', 0.0)
@@ -241,7 +270,7 @@ def render_explainability_page() -> None:
     
     with col_s1:
         st.markdown(f"<h4 style='text-align: center;'>Ensamble Stacking</h4>", unsafe_allow_html=True)
-        fig_stacking = plot_custom_shap_single(shaps_s, global_target_mean, names_s, vals_s, top_n=10, true_value=real_price)
+        fig_stacking = plot_custom_shap_single(shaps_s, global_target_mean_s, names_s, vals_s, top_n=10, true_value=real_price)
         st.pyplot(fig_stacking)
         
     with col_s2:

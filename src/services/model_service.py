@@ -86,6 +86,7 @@ class StackingStrategy(PredictionStrategy):
                 # Si es un diccionario con modelos entrenados
                 meta = data['meta_model']
                 bases = data['base_models']
+                pca_pipe = data.get('meta_pca_pipeline', None)
                 
                 # Generar predicciones de nivel 0
                 oof_preds = []
@@ -93,6 +94,12 @@ class StackingStrategy(PredictionStrategy):
                     oof_preds.append(model.predict(X))
                 
                 oof_matrix = np.column_stack(oof_preds)
+                
+                # Añadir PCA features si existen
+                if pca_pipe is not None:
+                    pca_features = pca_pipe.transform(X)
+                    oof_matrix = np.column_stack([oof_matrix, pca_features])
+                    
                 return meta.predict(oof_matrix)
             except Exception as e:
                 raise RuntimeError(f"Error crítico ejecutando Stacking Joblib: {e}") from e

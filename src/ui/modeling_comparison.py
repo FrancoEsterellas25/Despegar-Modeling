@@ -39,36 +39,20 @@ def render_modeling_comparison_page() -> None:
     # ARQUITECTURAS
     # -------------------------------------------------------------------------
     col1, col2 = st.columns(2)
-
+    
     with col1:
         st.markdown("<h3 style='color: #27ae60;'>I. Topología Mixture of Experts (MoE)</h3>", unsafe_allow_html=True)
         st.markdown("""
-        **Filosofía de Diseño:** *Divide et impera* (Divide y vencerás).
-        La premisa central asume que el comportamiento del precio de un alojamiento turístico obedece a funciones matemáticas marcadamente diferentes dependiendo de su nicho de mercado (un hotel boutique no escala el precio de sus *amenities* de la misma forma que un resort estándar).
-
-        **Estructura del Grafo Computacional:**
-        1.  **Función Gating (Enrutador):** Un clasificador de Gradient Boosting (`XGBClassifier`) actúa como nodo raíz. Evalúa las características cualitativas iniciales (ej. Estrellas, MCA Latente) y asigna un peso probabilístico o una ruta estricta (hard-routing) hacia un experto específico.
-        2.  **Expertos Especializados (Experts):** Modelos regresores independientes (`XGBRegressor`) que han sido entrenados **exclusivamente** con el subconjunto de datos de su propio segmento (Estándar, Lujo, Boutique/Informal).
-        
-        **Ventaja Teórica:**
-        Reducción del sesgo condicional. Cada árbol de decisión en el experto no malgasta cortes (splits) intentando separar hoteles de lujo de los baratos, concentrándose únicamente en optimizar la micro-varianza de su segmento.
+        - **Enrutador:** Reglas heurísticas de negocio (basadas en estrellas, cantidad de habitaciones y amenities) que segmentan el inventario en tres grupos: *Lujo/Resort*, *Boutique/Informal* y *Estándar*. 
+        - **Expertos:** Modelos XGBoost independientes y especializados (Finetuneados en el espacio logarítmico del target) para cada segmento de negocio.
         """)
 
     with col2:
         st.markdown("<h3 style='color: #2980b9;'>II. Topología Ensamble Stacking</h3>", unsafe_allow_html=True)
         st.markdown("""
-        **Filosofía de Diseño:** Consenso de Expertos Globales.
-        En lugar de particionar el conjunto de datos, se aprovecha la diversidad algorítmica. Distintas familias de algoritmos capturan diferentes patrones en el espacio de características global.
-
-        **Estructura del Grafo Computacional:**
-        1.  **Nivel 0 (Estimadores Base):** Un conjunto heterogéneo de modelos entrenados de forma paralela sobre la totalidad del dataset:
-            *   *Random Forest:* Excelente generalización vía *bagging* y alta robustez ante *outliers*.
-            *   *XGBoost:* Descenso de gradiente puro, optimización extrema de funciones de pérdida.
-            *   *LightGBM:* Gradient Boosting basado en hojas (leaf-wise growth), alta eficiencia con variables categóricas proyectadas.
-        2.  **Nivel 1 (Meta-Modelo):** Un estimador paramétrico lineal simple (`LinearRegression` / `RidgeCV`). Se alimenta estrictamente de las predicciones Out-Of-Fold (OOF) del Nivel 0.
-        
-        **Ventaja Teórica:**
-        Minimización estructural de la varianza. El meta-estimador aprende a ponderar en tiempo real a qué modelo base "creerle" según su confianza implícita, corrigiendo los errores direccionales de los demás.
+        - **Nivel 0 (Base):** Modelos basados en árboles (XGBoost, LightGBM, RandomForest).
+        - **Análisis de Correlación de Predicciones Out of Sample:** Entrenamos modelos y mediante CV (Cross-Validation), predecimos un subset de los datos de entrenamiento, con esas predicciones (para los 3 modelos base), calculamos la correlación entre los mismos. Esperamos baja correlación entre las predicciones de los modelos, para no tener modelos que, básicamente, estén diciendo lo mismo. 
+        - **Nivel 1 (Meta-modelo):** Regresión Lineal Ordinaria (OLS). Combina las predicciones base para optimizar el error general sin pérdida de linealidad. Además de recibir las primeras 2 componentes principales del PCA de los datos de entrenamiento, a forma de contextualizar al modelo, sin romper el principio de que el meta-modelo solo aprenda combinaciones lineales de las predicciones de los modelos base.
         """)
 
     st.divider()

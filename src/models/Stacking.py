@@ -9,6 +9,9 @@ import lightgbm as lgb
 from sklearn.linear_model import RidgeCV, LinearRegression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import KFold
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.preprocessing import StandardScaler, FunctionTransformer
+from sklearn.decomposition import PCA
 
 # Ignorar advertencias inofensivas
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -147,6 +150,35 @@ def main():
     oof_train = np.zeros((len(X_train_sub), len(base_models)))
     oof_val = np.zeros((len(X_val), len(base_models)))
     
+    # === NUEVO: PCA OOF PARA EL META-MODELO ===
+    # Extraemos 2 componentes principales asegurando no cometer data-leakage (ajuste solo en X_tr)
+    print("\n" + "="*60)
+    print("EXTRAYENDO PCA OOF PARA EL META-MODELO (2 COMPONENTES)...")
+    print("="*60)
+    
+    pca_oof_train = np.zeros((len(X_train_sub), 2))
+    pca_oof_val = np.zeros((len(X_val), 2))
+    
+    for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_arr)):
+        X_tr = X_train_arr[train_idx]
+        X_va = X_train_arr[val_idx]
+        
+        pca_pipe = Pipeline([
+            ('scaler', StandardScaler()),
+            ('pca', PCA(n_components=2, random_state=42))
+        ])
+        
+        # Ajustamos solo en train fold
+        pca_pipe.fit(X_tr)
+        
+        # Transformamos el validation fold
+        pca_oof_train[val_idx] = pca_pipe.transform(X_va)
+        
+        # Transformamos el validation set externo y sumamos para luego promediar
+        pca_oof_val += pca_pipe.transform(X_val.values) / K
+        
+    print("PCA OOF calculado exitosamente.")
+    
     print("\n" + "="*60)
     print("NIVEL 0: Entrenando modelos base y generando predicciones OOF (K=5)...")
     print("="*60)
@@ -184,11 +216,19 @@ def main():
         print(f">> {name} OOF Performance: RMSE={rmse_oof:.4f} | MAE={mae_oof:.4f}")
 
     # Convertir OOF a DataFrame para comodidad
-    oof_train_df = pd.DataFrame(oof_train, columns=list(base_models.keys()))
-    oof_val_df = pd.DataFrame(oof_val, columns=list(base_models.keys()))
+    base_names = list(base_models.keys())
+    oof_train_df = pd.DataFrame(oof_train, columns=base_names)
+    oof_val_df = pd.DataFrame(oof_val, columns=base_names)
+    
+    # Añadir las componentes PCA
+    oof_train_df['PCA1'] = pca_oof_train[:, 0]
+    oof_train_df['PCA2'] = pca_oof_train[:, 1]
+    
+    oof_val_df['PCA1'] = pca_oof_val[:, 0]
+    oof_val_df['PCA2'] = pca_oof_val[:, 1]
     
     print("\n" + "="*60)
-    print("CORRELACIÓN DE PREDICCIONES OUT-OF-FOLD (OOF) ENTRE MODELOS BASE")
+    print("CORRELACIÓN DE PREDICTORES DEL NIVEL 1 (OOF + PCA)")
     print("="*60)
     correlation_matrix = oof_train_df.corr()
     print(correlation_matrix)
@@ -208,8 +248,8 @@ def main():
     meta_model = LinearRegression()
     meta_model.fit(oof_train_df, y_train_arr)
     
-    print("  Pesos (Importancia de Variables) asignados a cada modelo base:")
-    for name, weight in zip(base_models.keys(), meta_model.coef_):
+    print("  Pesos (Importancia de Variables) asignados al Meta-Modelo:")
+    for name, weight in zip(oof_train_df.columns, meta_model.coef_):
         print(f"    - {name}: {weight:.4f}")
     print(f"    - Intercepto: {meta_model.intercept_:.4f}")
     
@@ -260,6 +300,13 @@ def main():
         print(f"Entrenando {name} sobre todo el dataset de entrenamiento...")
         model.fit(X_train_arr, y_train_arr)
         fitted_base_models[name] = model
+    # Entrenar PCA global para usar en inferencia
+    print("Entrenando PCA global sobre todo el dataset de entrenamiento para inferencia...")
+    final_pca_pipeline = Pipeline([
+        ('scaler', StandardScaler()),
+        ('pca', PCA(n_components=2, random_state=42))
+    ])
+    final_pca_pipeline.fit(X_train_arr)
         
     models_dir = os.path.join(base_dir, "models")
     os.makedirs(models_dir, exist_ok=True)
@@ -267,7 +314,8 @@ def main():
     
     stacking_data = {
         'meta_model': meta_model,
-        'base_models': fitted_base_models
+        'base_models': fitted_base_models,
+        'meta_pca_pipeline': final_pca_pipeline
     }
     
     joblib.dump(stacking_data, out_model_path)

@@ -1,11 +1,13 @@
 import streamlit as st
+from src.ui.home import render_home_page
 from src.ui.feature_engineering import render_feature_engineering_page
 from src.ui.modeling_comparison import render_modeling_comparison_page
 from src.ui.explainability import render_explainability_page
+from src.ui.conclusions import render_conclusions_page
 
 # Configuración de página de Streamlit
 st.set_page_config(
-    page_title="Hotel Pricing Rio - Exponent App",
+    page_title="Modelado de Precios de Alojamiento (Rio de Janeiro)",
     page_icon="🔮",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -36,14 +38,14 @@ st.markdown(
 
 def main() -> None:
     """Main function driving the Streamlit application routing."""
-    st.sidebar.title("🔮 Hotel Price Predictor")
+    st.sidebar.title("🔮 Modelado de Precios de Alojamiento")
     st.sidebar.write("Río de Janeiro, Brasil")
     st.sidebar.markdown("---")
 
     # Selección de Módulo
     page = st.sidebar.radio(
         "Navegación:",
-        ["Feature Engineering", "Enfoques de Modelado", "Evaluación & SHAP"]
+        ["Inicio", "Feature Engineering", "Enfoques de Modelado", "Evaluación & SHAP", "Conclusiones"]
     )
 
     st.sidebar.markdown("---")
@@ -55,12 +57,16 @@ def main() -> None:
     )
 
     # Ruteo lógico
-    if page == "Feature Engineering":
+    if page == "Inicio":
+        render_home_page()
+    elif page == "Feature Engineering":
         render_feature_engineering_page()
     elif page == "Enfoques de Modelado":
         render_modeling_comparison_page()
     elif page == "Evaluación & SHAP":
         render_explainability_page()
+    elif page == "Conclusiones":
+        render_conclusions_page()
 
 if __name__ == "__main__":
     main()
