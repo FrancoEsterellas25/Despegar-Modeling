@@ -134,53 +134,6 @@ def render_feature_engineering_page() -> None:
 
     st.divider()
 
-    # -------------------------------------------------------------------------
-    # SECCIÓN 4: SYMBOLIC TRANSFORMER Y PRUEBA ESTADÍSTICA
-    # -------------------------------------------------------------------------
-    st.markdown("### 4. Transformaciones Algorítmicas: Symbolic Transformer")
-    
-    col1_sym, col2_sym = st.columns([1, 1])
-    
-    with col1_sym:
-        st.markdown("""
-        **Generación de Variables No Lineales:**
-        Como técnica avanzada de *Feature Discovery*, se empleó un Transformador Simbólico (Symbolic Transformer). Este algoritmo utiliza programación genética para combinar variables crudas mediante operadores matemáticos (suma, resta, multiplicación, división analítica).
-        
-        **Impacto en la Arquitectura de Stacking:**
-        Mientras que los modelos basados en árboles (Nivel 0) pueden modelar interacciones complejas de forma nativa, el meta-modelo del Nivel 1 (Regresión Lineal) requiere relaciones estrictamente lineales. Las variables descubiertas por el Symbolic Transformer exponen no-linealidades profundas como features de primer orden, facilitando el aprendizaje de estimadores lineales.
-        """)
-        
-    with col2_sym:
-        st.info("🔬 **Auditoría de Rendimiento: Test A/B Riguroso**")
-        st.markdown("""
-        Para garantizar que la inyección de estas variables sintéticas aporta ganancia de información real, se diseñó un pipeline de testeo empírico:
-        *   **Baseline vs. Aumentado:** `XGBRegressor` (`max_depth=3`)
-        *   **Cross-Validation:** 5-Fold CV aleatorio.
-        *   **Prueba de Hipótesis:** Paired T-Test sobre el RMSE.
-        """)
-        
-        if st.button("▶ Ejecutar Demostración Empírica", type="primary"):
-            import subprocess
-            import os
-            
-            with st.spinner("Entrenando modelos y calculando test estadístico (K=5)..."):
-                base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                script_path = os.path.join(base_dir, "src", "models", "compare_symbolic_performance.py")
-                
-                try:
-                    # Ejecutar el script y capturar la salida
-                    result = subprocess.run(
-                        ["python", script_path],
-                        capture_output=True,
-                        text=True,
-                        check=True
-                    )
-                    st.success("Test finalizado con éxito.")
-                    with st.expander("Ver Resultados Completos del Test Estadístico", expanded=True):
-                        st.code(result.stdout, language="text")
-                except subprocess.CalledProcessError as e:
-                    st.error("Error al ejecutar la demostración empírica.")
-                    with st.expander("Detalles del Error"):
-                        st.code(e.stderr, language="text")
+
         
     st.markdown("<br><p style='text-align: center; font-size: 0.8em; color: gray;'>Reporte generado para propósitos de auditoría y revisión arquitectónica.</p>", unsafe_allow_html=True)

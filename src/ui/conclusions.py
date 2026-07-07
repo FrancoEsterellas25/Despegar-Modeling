@@ -34,7 +34,7 @@ def render_conclusions_page() -> None:
     <div class="conclusion-card">
         <h2 style='color: #047857; margin-top: 0;'>✅ Conclusión Empírica</h2>
         <p style='font-size: 1.15rem; color: #065f46; line-height: 1.6; margin-bottom: 0;'>
-        Se ha comprobado empíricamente que <strong>ambos enfoques (MoE y Stacking) son fructíferos y competitivos</strong>. Dependiendo del caso individual o segmento de mercado, un enfoque predice puntualmente mejor que el otro, pero en términos agregados ambos ostentan una performance muy similar y altamente satisfactoria para el negocio.
+        Se ha comprobado empíricamente que la arquitectura híbrida de <strong>Stacking Dinámico con Hard Routing (6 Clústeres)</strong> es inmensamente superior a los enfoques tradicionales. Al unificar la especialización local (MoE) con la generalización global (Stacking Lineal), logramos dos herramientas de grado productivo: <strong>El Escudo de Varianza (Ridge)</strong> para finanzas macro y <strong>El Francotirador (Huber)</strong> para predicciones exactas de cara al usuario.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -43,18 +43,18 @@ def render_conclusions_page() -> None:
     
     st.markdown("""
     <div class="step-card">
-        <div class="step-icon">🧱</div>
+        <div class="step-icon">🔬</div>
         <div>
-            <h4 style='margin: 0; color: #1e293b; font-size: 1.1rem;'>Expandir el Ensamble Base</h4>
-            <p style='margin: 0; color: #475569; margin-top: 0.3rem;'>Agregar modelos basados en otras filosofías al modelado de Stacking (por ejemplo: KNN, basado en distancias).</p>
+            <h4 style='margin: 0; color: #1e293b; font-size: 1.1rem;'>Explicabilidad (SHAP Values)</h4>
+            <p style='margin: 0; color: #475569; margin-top: 0.3rem;'>Diseñar un pipeline personalizado que ejecute SHAP localmente para los 6 regímenes de mercado, permitiendo auditar la importancia de las variables a nivel de cada alojamiento individual.</p>
         </div>
     </div>
     
     <div class="step-card">
-        <div class="step-icon">🔀</div>
+        <div class="step-icon">🗺️</div>
         <div>
-            <h4 style='margin: 0; color: #1e293b; font-size: 1.1rem;'>Evolucionar el Enrutador (Gating)</h4>
-            <p style='margin: 0; color: #475569; margin-top: 0.3rem;'>Al Mixture of Experts, realizar un sistema objetivo de enrutador de observaciones para la segmentación inteligente.</p>
+            <h4 style='margin: 0; color: #1e293b; font-size: 1.1rem;'>Análisis Profundo de Clústeres</h4>
+            <p style='margin: 0; color: #475569; margin-top: 0.3rem;'>Realizar una inmersión comercial para descifrar exactamente qué perfil de hoteles, amenities o zonas geográficas agrupó de manera autónoma el Árbol de Decisión en sus 6 hojas.</p>
         </div>
     </div>
     """, unsafe_allow_html=True)

@@ -124,9 +124,8 @@ def main():
     # 1. Cargar y limpiar datos
     X_train, y_train, X_val, y_val = load_and_clean_data(train_path, val_path)
     
-    # Para agilizar el cálculo en el script (K=5 folds sobre todo el dataset de 1M+ de filas con RF/XGB/LGB puede tomar horas)
-    # Hacemos un submuestreo de 100,000 registros para train para que sea rápido y ejecutable en tiempo prudencial.
-    max_train_samples = 1000000
+    # Hacemos un submuestreo de 200,000 registros para train para que sea ejecutable en tiempo prudencial.
+    max_train_samples = 200000
     if len(X_train) > max_train_samples:
         print(f"\nSubmuestreando X_train a {max_train_samples} filas para hacer viable la ejecución del Stacking...")
         X_train_sub = X_train.sample(n=max_train_samples, random_state=42)
@@ -137,8 +136,24 @@ def main():
         
     X_train_arr = X_train_sub.values
     y_train_arr = y_train_sub.values
+    print(f"Shape de X_train final: {X_train_arr.shape}")
+    print(f"Shape de X_val final: {X_val.shape}")
     
-    # 2. Configurar Cross Validation
+    import sys
+    use_log = False
+    if len(sys.argv) > 1 and sys.argv[1].lower() == 'log':
+        use_log = True
+        
+    print(f"\nMODO DE ENTRENAMIENTO STACKING: {'LOG (np.log1p)' if use_log else 'BRUTO (Escala real)'}")
+    
+    if use_log:
+        y_train_arr = np.log1p(y_train_arr)
+        # Convertimos y_val para que la regresion final encaje
+        y_val_log = np.log1p(y_val.values)
+    else:
+        y_val_log = y_val.values
+        
+    # Inicializar K-Fold (Usamos K=5 como estándar robusto para series no temporales)
     K = 5
     kf = KFold(n_splits=K, shuffle=True, random_state=42)
     
@@ -211,8 +226,15 @@ def main():
         oof_val[:, model_idx] = val_preds_fold
         
         # Calcular performance individual OOF
-        rmse_oof = np.sqrt(mean_squared_error(y_train_arr, oof_predictions))
-        mae_oof = mean_absolute_error(y_train_arr, oof_predictions)
+        if use_log:
+            y_train_real = np.expm1(y_train_arr)
+            oof_preds_real = np.expm1(oof_predictions)
+        else:
+            y_train_real = y_train_arr
+            oof_preds_real = oof_predictions
+            
+        rmse_oof = np.sqrt(mean_squared_error(y_train_real, oof_preds_real))
+        mae_oof = mean_absolute_error(y_train_real, oof_preds_real)
         print(f">> {name} OOF Performance: RMSE={rmse_oof:.4f} | MAE={mae_oof:.4f}")
 
     # Convertir OOF a DataFrame para comodidad
@@ -228,32 +250,37 @@ def main():
     oof_val_df['PCA2'] = pca_oof_val[:, 1]
     
     print("\n" + "="*60)
-    print("CORRELACIÓN DE PREDICTORES DEL NIVEL 1 (OOF + PCA)")
-    print("="*60)
-    correlation_matrix = oof_train_df.corr()
-    print(correlation_matrix)
-    
-    print("\n" + "="*60)
     print("NIVEL 1: Entrenando el meta-modelo...")
     print("="*60)
-    
-    # ELECCIÓN DEL META-MODELO:
-    # Usamos una Regresión Lineal simple (OLS) sin regularización a petición del usuario.
-    # Nota: la correlación entre las predicciones de los modelos base suele ser muy alta, 
-    # por lo que los coeficientes resultantes mostrarán la importancia directa que el
-    # modelo de Stacking asigna a cada predictor, aunque hay que vigilar el potencial 
-    # impacto de la multicolinealidad en la estabilidad de estos coeficientes.
     
     print("Entrenando Regresión Lineal ordinaria (sin regularización) en OOF de Nivel 0...")
     meta_model = LinearRegression()
     meta_model.fit(oof_train_df, y_train_arr)
     
+    print("Realizando predicción final sobre el set de validación...")
+    final_predictions = meta_model.predict(oof_val_df)
+    
+    if use_log:
+        final_predictions = np.expm1(final_predictions)
+        
+    y_val_real = y_val.values
+    
+    final_rmse = np.sqrt(mean_squared_error(y_val_real, final_predictions))
+    final_mae = mean_absolute_error(y_val_real, final_predictions)
+    final_r2 = r2_score(y_val_real, final_predictions)
+    
+    print("\n" + "="*60)
+    print(f"RESULTADOS FINALES STACKING ({'LOG' if use_log else 'RAW'})")
+    print("="*60)
+    print(f"MAE  (Error Absoluto Medio): {final_mae:.4f} USD")
+    print(f"RMSE (Error Cuadrático):     {final_rmse:.4f} USD")
+    print(f"R2   (Coef. Determinación):  {final_r2:.4f}")
+    print("="*60)
+    
     print("  Pesos (Importancia de Variables) asignados al Meta-Modelo:")
     for name, weight in zip(oof_train_df.columns, meta_model.coef_):
         print(f"    - {name}: {weight:.4f}")
     print(f"    - Intercepto: {meta_model.intercept_:.4f}")
-    
-    # 4. Evaluación en el set de validación final (val_data_clean.csv)
     print("\n" + "="*60)
     print("EVALUACIÓN DE RENDIMIENTO EN EL SET DE VALIDACIÓN EXTERNO")
     print("="*60)

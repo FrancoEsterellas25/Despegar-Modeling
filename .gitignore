@@ -1,4 +1,5 @@
 # Data
+/r-developmente/
 /data/
 /models/
 *.csv
@@ -53,3 +54,7 @@ venv.bak/
 .RData
 .RDataTmp*
 .RUserData
+
+# LaTeX / Report
+reporte/*
+!reporte/reporte.pdf

@@ -50,10 +50,9 @@ def main() -> None:
 
     st.sidebar.markdown("---")
     st.sidebar.info(
-        "**Info de Arquitectura:**\n"
-        "- Inferencia: ONNX Runtime (Opción A)\n"
-        "- Motor de datos: Polars\n"
-        "- Explicabilidad: SHAP Values"
+        "**📚 Documentación Oficial:**\n\n"
+        "Podés consultar el desarrollo matemático y metodológico exhaustivo en el reporte final:\n\n"
+        "👉 [Leer Reporte (PDF)](reporte/reporte.pdf)"
     )
 
     # Ruteo lógico

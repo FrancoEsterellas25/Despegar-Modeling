@@ -68,9 +68,10 @@ def preprocess_and_clean_pipeline(data_dir="data"):
     
     # Filtrar registros sin hid o sin coordenadas válidas
     data = data.dropna(subset=["hid", "longitude", "latitude"])
-    
-    # Calcular price_by_night_person (variable objetivo original)
-    data["price_by_night_person"] = data["price_by_night"] / (data["adults"] + data["children"])
+
+    # Calcular price_by_night_person
+    # (El dataset original ya trae 'price_by_night_person' calculada exactamente por la API,
+    # por lo que evitamos re-calcularla para no perder la lógica interna de precios del hotel para niños/infantes)
     
     # Feature Engineering de fechas y temporalidad
     print("Generando features de estacionalidad, Check-In y eventos especiales...")
@@ -132,46 +133,63 @@ def preprocess_and_clean_pipeline(data_dir="data"):
         hoteles_utm["latitude"], hoteles_utm["longitude"], -22.9519, -43.2105
     )
     
-    # Estaciones de Metro (Caché local en data/external)
-    metro_cache_path = os.path.join(data_dir, "external", "metro_estaciones_cache.rds")
-    if pyreadr is not None and os.path.exists(metro_cache_path):
-        print("Cargando estaciones de metro desde caché local...")
-        metro_data = pyreadr.read_r(metro_cache_path)[None]
+    # Estaciones de Metro (Leemos el CSV exportado de R con las estaciones originales)
+    metro_csv_path = os.path.join(data_dir, "external", "metro_estaciones_cache.csv")
+    if os.path.exists(metro_csv_path):
+        print("Cargando estaciones de metro original desde CSV (Extraído de OSM)...")
+        df_metro = pd.read_csv(metro_csv_path)
+        metro_lats = df_metro["lat"].values
+        metro_lons = df_metro["lon"].values
         
-        # Calcular distancia al metro más cercano para cada hotel
-        # Si tiene geometría sf R-shape, extraemos coordenadas
-        if "geometry" in metro_data.columns:
-            # Aproximación mediante coordenadas extraídas
-            metro_lats = metro_data["geometry"].apply(lambda p: p.y if hasattr(p, "y") else -22.9)
-            metro_lons = metro_data["geometry"].apply(lambda p: p.x if hasattr(p, "x") else -43.18)
-        else:
-            metro_lats, metro_lons = [-22.9068], [-43.1729] # Fallback
-            
+        print("Calculando distancias exactas a las estaciones de metro originales (Haversine vectorizado)...")
         distances_metro = []
         for idx, row in hoteles_utm.iterrows():
-            dist = haversine_distance(row["latitude"], row["longitude"], metro_lats, metro_lons)
-            distances_metro.append(np.min(dist))
+            dists = haversine_distance(row["latitude"], row["longitude"], metro_lats, metro_lons)
+            distances_metro.append(np.min(dists))
         hoteles_utm["dist_metro_m"] = distances_metro
     else:
-        print("Aviso: No se pudo cargar el caché de metro. Se asignará una distancia estimada.")
-        hoteles_utm["dist_metro_m"] = 1000.0
+        print("Aviso: No se encontró metro_estaciones_cache.csv. Calculando distancia real a estaciones principales (Fallback)...")
+        fallback_metro_coords = [
+            (-22.9068, -43.1729), (-22.9511, -43.1837), (-22.9644, -43.1809), 
+            (-22.9847, -43.1986), (-23.0075, -43.3117)
+        ]
+        metro_lats = [c[0] for c in fallback_metro_coords]
+        metro_lons = [c[1] for c in fallback_metro_coords]
         
-    # Playas / Costa (Caché local en data/external o Fallback Geoespacial)
-    costa_cache_path = os.path.join(data_dir, "external", "costa_linea_cache.rds")
+        distances_metro = []
+        for idx, row in hoteles_utm.iterrows():
+            dists = [haversine_distance(row["latitude"], row["longitude"], lat, lon) for lat, lon in zip(metro_lats, metro_lons)]
+            distances_metro.append(np.min(dists))
+        hoteles_utm["dist_metro_m"] = distances_metro
+        
+    # Playas / Costa (Leemos el CSV exportado de R con los puntos originales de la costa)
+    costa_csv_path = os.path.join(data_dir, "external", "costa_linea_cache.csv")
     
-    # Independientemente de pyreadr, usaremos el fallback de Haversine para garantizar varianza
-    costa_fallback = {
-        "Barra": (-23.015, -43.370), "Ipanema": (-22.988, -43.200),
-        "Copacabana": (-22.971, -43.179), "Flamengo": (-22.925, -43.167)
-    }
-    
-    print("Calculando distancias a playas principales usando aproximación Haversine...")
-    distances_playa = []
-    for idx, row in hoteles_utm.iterrows():
-        dists = [haversine_distance(row["latitude"], row["longitude"], lat, lon) for lat, lon in costa_fallback.values()]
-        distances_playa.append(np.min(dists))
-    
-    hoteles_utm["dist_playa_m"] = distances_playa
+    if os.path.exists(costa_csv_path):
+        print("Cargando línea de costa original desde CSV (Extraído de OSM)...")
+        df_costa = pd.read_csv(costa_csv_path)
+        costa_lats = df_costa["lat"].values
+        costa_lons = df_costa["lon"].values
+        
+        print("Calculando distancias exactas a la línea de costa original (Haversine vectorizado)...")
+        distances_playa = []
+        for idx, row in hoteles_utm.iterrows():
+            dists = haversine_distance(row["latitude"], row["longitude"], costa_lats, costa_lons)
+            distances_playa.append(np.min(dists))
+        hoteles_utm["dist_playa_m"] = distances_playa
+    else:
+        print("Aviso: No se encontró costa_linea_cache.csv. Usando aproximación Haversine...")
+        costa_fallback = {
+            "Barra": (-23.015, -43.370), "Ipanema": (-22.988, -43.200),
+            "Copacabana": (-22.971, -43.179), "Flamengo": (-22.925, -43.167)
+        }
+        
+        distances_playa = []
+        for idx, row in hoteles_utm.iterrows():
+            dists = [haversine_distance(row["latitude"], row["longitude"], lat, lon) for lat, lon in costa_fallback.values()]
+            distances_playa.append(np.min(dists))
+        
+        hoteles_utm["dist_playa_m"] = distances_playa
         
     # Favelas (Aglomerados Subnormais IBGE 2019 desde data/external)
     favelas_shapefile = os.path.join(data_dir, "external", "base_grafica_20200519_110000", "AGSN_2019", "AGSN_2019.shp")
@@ -208,13 +226,21 @@ def preprocess_and_clean_pipeline(data_dir="data"):
     
     df_amenities["total_amenities"] = df_amenities[cols_amenities].fillna(0).sum(axis=1)
     
-    # 1. Partición agrupada por búsquedas (searchid) - 80% Train, 20% Val
+    # 1. Partición agrupada por búsquedas (searchid) - 70% Train, 15% Val, 15% Test
     unique_searches = data["searchid"].unique()
     np.random.seed(42)
-    train_ids = np.random.choice(unique_searches, size=int(0.8 * len(unique_searches)), replace=False)
+    np.random.shuffle(unique_searches)
+    
+    n_train = int(0.7 * len(unique_searches))
+    n_val = int(0.15 * len(unique_searches))
+    
+    train_ids = unique_searches[:n_train]
+    val_ids = unique_searches[n_train:n_train + n_val]
+    test_ids = unique_searches[n_train + n_val:]
     
     train_data = data[data["searchid"].isin(train_ids)].copy()
-    val_data = data[~data["searchid"].isin(train_ids)].copy()
+    val_data = data[data["searchid"].isin(val_ids)].copy()
+    test_data = data[data["searchid"].isin(test_ids)].copy()
     
     # 2. Imputación condicional de ratings y capacidad (basado estrictamente en Train)
     rating_cols = [
@@ -229,6 +255,10 @@ def preprocess_and_clean_pipeline(data_dir="data"):
     global_means_train = train_data[rating_cols].mean()
     
     def imputar_y_ratio(df):
+        # Crear flags binarios para indicar si el dato fue imputado
+        for col in rating_cols:
+            df[f"{col}_is_missing"] = df[col].isnull().astype(int)
+            
         df_imputed = df.merge(imputacion_ratings, on="starRating", how="left", suffixes=("", "_mean_train"))
         for col in rating_cols:
             mean_train_col = f"{col}_mean_train"
@@ -242,6 +272,9 @@ def preprocess_and_clean_pipeline(data_dir="data"):
         
     train_data = imputar_y_ratio(train_data)
     val_data = imputar_y_ratio(val_data)
+    test_data = imputar_y_ratio(test_data)
+    
+    print("Variables de calidad y ratios imputadas exitosamente en Train, Val y Test.")
     
     # 3. MCA de Amenities entrenado en Train y proyectado en ambos sets
     # Si el paquete 'prince' está instalado, se calcula la proyección matemática exacta.
@@ -310,23 +343,28 @@ def preprocess_and_clean_pipeline(data_dir="data"):
     
     train_data_clean = train_data.merge(df_hotel_all_features, on="hid", how="left", suffixes=("", "_extra"))
     val_data_clean = val_data.merge(df_hotel_all_features, on="hid", how="left", suffixes=("", "_extra"))
+    test_data_clean = test_data.merge(df_hotel_all_features, on="hid", how="left", suffixes=("", "_extra"))
     
     # Remover variables categóricas redundantes e intermedias
     cols_to_drop = cols_amenities + ["hotel_id", "date_search", "date_ci"]
     train_data_clean = train_data_clean.drop(columns=cols_to_drop, errors="ignore")
     val_data_clean = val_data_clean.drop(columns=cols_to_drop, errors="ignore")
+    test_data_clean = test_data_clean.drop(columns=cols_to_drop, errors="ignore")
     
     # --------------------------------------------------------------------------
     # 5. EXPORTACIÓN A CSV (en data/processed)
     # --------------------------------------------------------------------------
     train_output = os.path.join(data_dir, "processed", "train_data_clean.csv")
     val_output = os.path.join(data_dir, "processed", "val_data_clean.csv")
+    test_output = os.path.join(data_dir, "processed", "test_data_clean.csv")
     
     train_data_clean.to_csv(train_output, index=False)
     val_data_clean.to_csv(val_output, index=False)
+    test_data_clean.to_csv(test_output, index=False)
     
     print(f"Dataset de entrenamiento guardado exitosamente en: {train_output} (Shape: {train_data_clean.shape})")
     print(f"Dataset de validación guardado exitosamente en: {val_output} (Shape: {val_data_clean.shape})")
+    print(f"Dataset de test guardado exitosamente en: {test_output} (Shape: {test_data_clean.shape})")
 
 if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
