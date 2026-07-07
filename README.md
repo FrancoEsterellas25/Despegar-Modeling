@@ -18,6 +18,11 @@ Tras evaluar la arquitectura sobre el 100% de la varianza del mundo real (sin el
   - **$R^2$:** 0.6131
   - *Ideal para inferencias precisas de cara al usuario en el Front-End, logrando un error en dólares mínimo.*
 
+---
+📉 **Nota de Justificación Arquitectónica (Baseline):** 
+Para dimensionar el valor de esta arquitectura, se entrenó un modelo de **Regresión Lineal Simple (Ridge global)** asumiendo un comportamiento unificado para toda la ciudad. Sus resultados empíricos fueron un **MAE de $50.94 USD** y un $R^2$ de **0.1250**. 
+Implementar el Enrutamiento Geométrico de 6 clústeres redujo el error promedio en **más de $31 dólares por noche**, demostrando que Río de Janeiro requiere un modelado fuertemente no-lineal y local.
+
 ## 🖥️ Interfaz Analítica (Streamlit)
 El proyecto incluye un dashboard interactivo para auditar el Feature Engineering, explorar las arquitecturas y revisar empíricamente las predicciones del modelo (hotel por hotel).
 

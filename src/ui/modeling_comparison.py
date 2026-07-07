@@ -59,18 +59,18 @@ def render_modeling_comparison_page() -> None:
 
     st.divider()
 
-    # -------------------------------------------------------------------------
-    # EVALUACIÓN EMPÍRICA (MÉTRICAS)
-    # -------------------------------------------------------------------------
-    st.markdown("### 📊 Evaluación de Rendimiento Empírico (Set de Testeo sin filtrar)")
-    
     # Métricas consolidadas del backend
     metrics_data = [
+        {"Arquitectura": "Regresión Lineal Simple (Baseline)", "MAE (USD)": "$50.94", "R²": "0.1250", "Estado": "Descartado ❌"},
         {"Arquitectura": "El Escudo (Tweedie + Ridge)", "MAE (USD)": "$22.87", "R²": "0.6766", "Estado": "Ganador Varianza 🏆"},
         {"Arquitectura": "El Francotirador (Tweedie+MAE + Huber)", "MAE (USD)": "$19.42", "R²": "0.6131", "Estado": "Ganador Precisión 🏆"}
     ]
     metrics_df = pd.DataFrame(metrics_data)
+    
+    st.markdown("### 📊 Evaluación de Rendimiento Empírico (Set de Testeo sin filtrar)")
     st.dataframe(metrics_df, use_container_width=True)
+    
+    st.info("💡 **Justificación de Complejidad:** Como se observa en la tabla superior, asumir un comportamiento lineal y global para todo Río de Janeiro (Baseline) produce un error inadmisible de **$50.94 USD** por noche. La segmentación espacial y el ensamble de expertos de nuestra arquitectura reduce ese error en más de 31 dólares, justificando plenamente el desarrollo algorítmico.")
     
     st.markdown("""
     > **💡 Nota sobre Limpieza de Datos:** En un experimento paralelo (truncando el dataset para ocultar los outliers $>1000$ USD), **El Francotirador** llegó a un récord artificial de **$16.23 USD** de MAE, mientras que **El Escudo** superó el **0.71** de $R^2$. Sin embargo, los modelos expuestos arriba (evaluados sobre la totalidad del mercado sin truncar) son los que poseen la verdadera madurez para producción.
