@@ -1,7 +1,8 @@
 # Data
 /r-developmente/
 /data/
-/models/
+/models/*
+!/models/*.json
 *.csv
 *.pkl
 *.joblib
